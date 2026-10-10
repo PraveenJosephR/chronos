@@ -10,21 +10,29 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useFonts } from 'expo-font';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAudioPlayer } from 'expo-audio';
-import * as NavigationBar from 'expo-navigation-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { StatusBar } from 'expo-status-bar';
+
+
 
 const STORAGE_KEY = '@gym_rest_timer_default_seconds';
 
 const INITIAL_TIME = 2 * 60;
 
 // Your sound file:
-const TIMER_SOUND = require('../assets/timer-end.mp3');
+const TIMER_SOUND = require('../../assets/timer-end.mp3');
 
 export default function Index() {
+  const [fontsLoaded,fontError] = useFonts({
+  SpaceNova: require('../../assets/SpaceNova-6Rpd1.otf'),
+});
+
+
+
   /*
    * ---------------------------------------------------------
    * STATE
@@ -84,13 +92,7 @@ export default function Index() {
         await ScreenOrientation.unlockAsync();
 
         // Hide Android navigation bar.
-        await NavigationBar.setVisibilityAsync('hidden');
-
-        await NavigationBar.setBehaviorAsync('overlay-swipe');
-
-        await NavigationBar.setBackgroundColorAsync('#050816');
-
-        await NavigationBar.setButtonStyleAsync('light');
+       
       } catch (error) {
         console.log('System UI configuration:', error);
       }
@@ -367,8 +369,8 @@ export default function Index() {
     String(seconds).padStart(2, '0');
 
   const landscapeFontSize = Math.min(
-    dimensions.width * 0.25,
-    dimensions.height * 0.78
+    dimensions.width * 0.34,
+    dimensions.height * 0.85
   );
 
   const portraitFontSize = Math.min(
@@ -455,13 +457,13 @@ export default function Index() {
                 {minuteText}
               </Text>
 
-              <View style={styles.cyberDivider}>
+              {/* <View style={styles.cyberDivider}>
                 <View style={styles.dividerPiece} />
                 <View style={styles.dividerPiece} />
                 <View style={styles.dividerPiece} />
                 <View style={styles.dividerPiece} />
                 <View style={styles.dividerPiece} />
-              </View>
+              </View> */}
 
               <Text
                 adjustsFontSizeToFit
@@ -604,10 +606,10 @@ const styles = StyleSheet.create({
 
     margin: 8,
 
-    backgroundColor: '#050816',
+    backgroundColor: '#10f9f8',
 
     borderWidth: 4,
-    borderColor: '#0057FF',
+    borderColor: '#10f9f8',
 
     overflow: 'hidden',
   },
@@ -643,24 +645,19 @@ const styles = StyleSheet.create({
    */
 
   timerText: {
-    color: '#F6FF00',
+    fontFamily: 'SpaceNova',
+    color: '#f7ea0d',
 
-    fontWeight: '900',
+    // fontWeight: '900',
+     transform: [{ translateY: 18 },{ scaleY: 1.55 }],
+     
 
-    letterSpacing: -4,
+    // letterSpacing: -4,
 
     includeFontPadding: false,
 
     textAlign: 'center',
 
-    textShadowColor: '#00D9FF',
-
-    textShadowOffset: {
-      width: 0,
-      height: 0,
-    },
-
-    textShadowRadius: 18,
   },
 
   /*
@@ -887,3 +884,4 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
 });
+

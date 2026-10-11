@@ -342,10 +342,8 @@ export default function Index() {
       if (numberOfTaps === 1) {
         toggleTimer();
       } else if (numberOfTaps === 2) {
-        openSettings();
-      } else if (numberOfTaps >= 3) {
         resetTimer();
-      }
+      } 
     }, 280);
   }, [toggleTimer, openSettings, resetTimer]);
 
@@ -399,6 +397,7 @@ export default function Index() {
       <Pressable
         style={styles.touchSurface}
         onPress={handleScreenTap}
+        onLongPress={openSettings}
       >
         <View
           style={[

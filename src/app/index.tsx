@@ -8,10 +8,11 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  ScrollView,
   View,
 } from 'react-native';
 import { useFonts } from 'expo-font';
-
+import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAudioPlayer } from 'expo-audio';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -27,9 +28,9 @@ const INITIAL_TIME = 2 * 60;
 const TIMER_SOUND = require('../../assets/timer-end.mp3');
 
 export default function Index() {
-  const [fontsLoaded,fontError] = useFonts({
-  SpaceNova: require('../../assets/SpaceNova-6Rpd1.otf'),
-});
+  const [fontsLoaded, fontError] = useFonts({
+    SpaceNova: require('../../assets/SpaceNova-6Rpd1.otf'),
+  });
 
 
 
@@ -92,7 +93,7 @@ export default function Index() {
         await ScreenOrientation.unlockAsync();
 
         // Hide Android navigation bar.
-       
+
       } catch (error) {
         console.log('System UI configuration:', error);
       }
@@ -343,7 +344,7 @@ export default function Index() {
         toggleTimer();
       } else if (numberOfTaps === 2) {
         resetTimer();
-      } 
+      }
     }, 280);
   }, [toggleTimer, openSettings, resetTimer]);
 
@@ -397,7 +398,10 @@ export default function Index() {
       <Pressable
         style={styles.touchSurface}
         onPress={handleScreenTap}
-        onLongPress={openSettings}
+        onLongPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          openSettings();
+        }}
       >
         <View
           style={[
@@ -493,92 +497,125 @@ export default function Index() {
        */}
 
       <Modal
-        visible={settingsVisible}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={() => {
-          setSettingsVisible(false);
-        }}
-      >
-        <View style={styles.modalOverlay}>
+  visible={settingsVisible}
+  transparent
+  animationType="fade"
+  statusBarTranslucent
+  onRequestClose={() => {
+    setSettingsVisible(false);
+  }}
+>
+  <View style={styles.modalOverlay}>
+    <View style={styles.modalCard}>
 
-          <View style={styles.modalCard}>
+      <Text style={styles.modalTitle}>
+        REST TIME
+      </Text>
 
-            <Text style={styles.modalTitle}>
-              REST TIME
-            </Text>
+      <View style={styles.timeInputs}>
 
-            <View style={styles.timeInputs}>
-
-              <View style={styles.inputContainer}>
-
-                <Text style={styles.inputLabel}>
-                  MINUTES
-                </Text>
-
-                <TextInput
-                  value={minutesInput}
-                  onChangeText={setMinutesInput}
-                  keyboardType="number-pad"
-                  maxLength={3}
-                  selectTextOnFocus
-                  style={styles.timeInput}
-                />
-
-              </View>
-
-              <Text style={styles.inputColon}>
-                :
-              </Text>
-
-              <View style={styles.inputContainer}>
-
-                <Text style={styles.inputLabel}>
-                  SECONDS
-                </Text>
-
-                <TextInput
-                  value={secondsInput}
-                  onChangeText={setSecondsInput}
-                  keyboardType="number-pad"
-                  maxLength={2}
-                  selectTextOnFocus
-                  style={styles.timeInput}
-                />
-
-              </View>
-
-            </View>
-
-            <View style={styles.modalActions}>
-
-              <Pressable
-                style={styles.cancelButton}
-                onPress={() => {
-                  setSettingsVisible(false);
-                }}
-              >
-                <Text style={styles.cancelText}>
-                  CANCEL
-                </Text>
-              </Pressable>
-
-              <Pressable
-                style={styles.setButton}
-                onPress={saveSettings}
-              >
-                <Text style={styles.setText}>
-                  SET
-                </Text>
-              </Pressable>
-
-            </View>
-
+        {/* MINUTES ROLLER (0 - 20) */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>
+            MINUTES
+          </Text>
+          <View style={[styles.timeInput, { height: 120, overflow: 'hidden', padding: 0 }]}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              snapToInterval={40}
+              decelerationRate="fast"
+              contentContainerStyle={{ paddingVertical: 40 }}
+              onMomentumScrollEnd={(e) => {
+                const index = Math.round(e.nativeEvent.contentOffset.y / 40);
+                setMinutesInput(String(index));
+              }}
+              // Optional: initial scroll position can be set using contentOffset or refs if needed
+            >
+              {Array.from({ length: 21 }, (_, i) => (
+                <Pressable 
+                  key={i} 
+                  style={{ height: 40, justifyContent: 'center', alignItems: 'center' }}
+                  onPress={() => setMinutesInput(String(i))}
+                >
+                  <Text style={{ 
+                    fontSize: Number(minutesInput) === i ? 20 : 16, 
+                    fontWeight: Number(minutesInput) === i ? 'bold' : 'normal',
+                    color: Number(minutesInput) === i ? '#f7ea0d' : '#888' 
+                  }}>
+                    {String(i).padStart(2, '0')}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
           </View>
-
         </View>
-      </Modal>
+
+        <Text style={styles.inputColon}>
+          :
+        </Text>
+
+        {/* SECONDS ROLLER (0 - 59) */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>
+            SECONDS
+          </Text>
+          <View style={[styles.timeInput, { height: 120, overflow: 'hidden', padding: 0 }]}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              snapToInterval={40}
+              decelerationRate="fast"
+              contentContainerStyle={{ paddingVertical: 40 }}
+              onMomentumScrollEnd={(e) => {
+                const index = Math.round(e.nativeEvent.contentOffset.y / 40);
+                setSecondsInput(String(index));
+              }}
+            >
+              {Array.from({ length: 60 }, (_, i) => (
+                <Pressable 
+                  key={i} 
+                  style={{ height: 40, justifyContent: 'center', alignItems: 'center' }}
+                  onPress={() => setSecondsInput(String(i))}
+                >
+                  <Text style={{ 
+                    fontSize: Number(secondsInput) === i ? 20 : 16, 
+                    fontWeight: Number(secondsInput) === i ? 'bold' : 'normal',
+                    color: Number(secondsInput) === i ? '#f7ea0d' : '#888' 
+                  }}>
+                    {String(i).padStart(2, '0')}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+
+      </View>
+
+      <View style={styles.modalActions}>
+        <Pressable
+          style={styles.cancelButton}
+          onPress={() => {
+            setSettingsVisible(false);
+          }}
+        >
+          <Text style={styles.cancelText}>
+            CANCEL
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.setButton}
+          onPress={saveSettings}
+        >
+          <Text style={styles.setText}>
+            SET
+          </Text>
+        </Pressable>
+      </View>
+
+    </View>
+  </View>
+</Modal>
 
     </View>
   );
@@ -648,8 +685,8 @@ const styles = StyleSheet.create({
     color: '#f7ea0d',
 
     // fontWeight: '900',
-     transform: [{ translateY: 18 },{ scaleY: 1.55 }],
-     
+    transform: [{ translateY: 18 }, { scaleY: 1.55 }],
+
 
     // letterSpacing: -4,
 

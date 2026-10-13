@@ -1,9 +1,10 @@
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Dimensions,
   Modal,
+  PanResponder,
   Pressable,
   StyleSheet,
   Text,
@@ -26,6 +27,7 @@ const INITIAL_TIME = 2 * 60;
 
 // Your sound file:
 const TIMER_SOUND = require('../../assets/timer-end.mp3');
+const STOPWATCH_TICKER = require('../../assets/ticker.mp3');
 
 export default function Index() {
   const [fontsLoaded, fontError] = useFonts({
@@ -49,6 +51,10 @@ export default function Index() {
   const [timeLeft, setTimeLeft] = useState(INITIAL_TIME);
 
   const [running, setRunning] = useState(false);
+
+  const [isStopwatch, setIsStopwatch] = useState(false);
+
+  const isStopwatchRef = useRef(false);
 
   const [settingsVisible, setSettingsVisible] = useState(false);
 
@@ -79,6 +85,19 @@ export default function Index() {
    */
 
   const endSound = useAudioPlayer(TIMER_SOUND);
+
+  const stopwatchTicker = useAudioPlayer(STOPWATCH_TICKER);
+
+  useEffect(() => {
+    stopwatchTicker.loop = true;
+
+    if (isStopwatch && running) {
+      stopwatchTicker.seekTo(0);
+      stopwatchTicker.play();
+    } else {
+      stopwatchTicker.pause();
+    }
+  }, [isStopwatch, running, stopwatchTicker]);
 
   /*
    * ---------------------------------------------------------
@@ -137,7 +156,9 @@ export default function Index() {
           storedSeconds > 0
         ) {
           setDefaultTime(storedSeconds);
-          setTimeLeft(storedSeconds);
+          if (!isStopwatchRef.current) {
+            setTimeLeft(storedSeconds);
+          }
 
           setMinutesInput(
             String(Math.floor(storedSeconds / 60))
@@ -173,6 +194,10 @@ export default function Index() {
 
     intervalRef.current = setInterval(() => {
       setTimeLeft((currentTime) => {
+        if (isStopwatch) {
+          return currentTime + 1;
+        }
+
         /*
          * Timer finished.
          */
@@ -210,7 +235,7 @@ export default function Index() {
         intervalRef.current = null;
       }
     };
-  }, [running, defaultTime, endSound]);
+  }, [running, defaultTime, endSound, isStopwatch]);
 
   /*
    * ---------------------------------------------------------
@@ -237,17 +262,34 @@ export default function Index() {
    */
 
   const toggleTimer = useCallback(() => {
-    if (timeLeft <= 0) {
+    if (!isStopwatch && timeLeft <= 0) {
       setTimeLeft(defaultTime);
     }
 
     setRunning((current) => !current);
-  }, [timeLeft, defaultTime]);
+  }, [timeLeft, defaultTime, isStopwatch]);
 
   const resetTimer = useCallback(() => {
     setRunning(false);
-    setTimeLeft(defaultTime);
-  }, [defaultTime]);
+    setTimeLeft(isStopwatch ? 0 : defaultTime);
+  }, [defaultTime, isStopwatch]);
+
+  const switchMode = useCallback((toStopwatch: boolean) => {
+    if (isStopwatch === toStopwatch) {
+      return;
+    }
+
+    if (tapTimeoutRef.current) {
+      clearTimeout(tapTimeoutRef.current);
+      tapTimeoutRef.current = null;
+    }
+    tapCountRef.current = 0;
+
+    setRunning(false);
+    isStopwatchRef.current = toStopwatch;
+    setIsStopwatch(toStopwatch);
+    setTimeLeft(toStopwatch ? 0 : defaultTime);
+  }, [defaultTime, isStopwatch]);
 
   /*
    * ---------------------------------------------------------
@@ -323,8 +365,7 @@ export default function Index() {
    * TAP GESTURES
    *
    * 1 tap = start / pause
-   * 2 taps = settings
-   * 3 taps = reset
+   * 2 taps = reset
    * ---------------------------------------------------------
    */
 
@@ -346,7 +387,29 @@ export default function Index() {
         resetTimer();
       }
     }, 280);
-  }, [toggleTimer, openSettings, resetTimer]);
+  }, [toggleTimer, resetTimer]);
+
+  const swipeResponder = useMemo(
+    () => PanResponder.create({
+      onMoveShouldSetPanResponder: (_, { dx, dy }) =>
+        Math.abs(dx) > 35 && Math.abs(dx) > Math.abs(dy),
+      onPanResponderGrant: () => {
+        if (tapTimeoutRef.current) {
+          clearTimeout(tapTimeoutRef.current);
+          tapTimeoutRef.current = null;
+        }
+        tapCountRef.current = 0;
+      },
+      onPanResponderRelease: (_, { dx }) => {
+        if (dx < -50) {
+          switchMode(true);
+        } else if (dx > 50) {
+          switchMode(false);
+        }
+      },
+    }),
+    [switchMode]
+  );
 
   /*
    * ---------------------------------------------------------
@@ -395,17 +458,19 @@ export default function Index() {
        * There are no buttons.
        */}
 
-      <Pressable
-        style={styles.touchSurface}
-        onPress={handleScreenTap}
-        onLongPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-          openSettings();
-        }}
-      >
+      <View style={styles.touchSurface} {...swipeResponder.panHandlers}>
+        <Pressable
+          style={styles.touchSurface}
+          onPress={handleScreenTap}
+          onLongPress={isStopwatch ? undefined : () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            openSettings();
+          }}
+        >
         <View
           style={[
             styles.timerScreen,
+            isStopwatch && styles.stopwatchScreen,
             isLandscape
               ? styles.landscape
               : styles.portrait,
@@ -425,6 +490,7 @@ export default function Index() {
               minimumFontScale={0.35}
               style={[
                 styles.timerText,
+                isStopwatch && styles.stopwatchText,
                 {
                   fontSize: landscapeFontSize,
                 },
@@ -452,6 +518,7 @@ export default function Index() {
                 minimumFontScale={0.35}
                 style={[
                   styles.timerText,
+                  isStopwatch && styles.stopwatchText,
                   {
                     fontSize: portraitFontSize,
                   },
@@ -474,6 +541,7 @@ export default function Index() {
                 minimumFontScale={0.35}
                 style={[
                   styles.timerText,
+                  isStopwatch && styles.stopwatchText,
                   {
                     fontSize: portraitFontSize,
                   },
@@ -486,13 +554,14 @@ export default function Index() {
           )}
 
         </View>
-      </Pressable>
+        </Pressable>
+      </View>
 
       {/*
        * -----------------------------------------------------
        * SETTINGS DIALOG
        *
-       * Only appears after double tap.
+       * Only appears after long press.
        * -----------------------------------------------------
        */}
 
@@ -650,6 +719,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 
+  stopwatchScreen: {
+    backgroundColor: '#bd0000',
+    borderColor: '#bd0000',
+  },
+
   landscape: {
     flexDirection: 'row',
 
@@ -694,6 +768,10 @@ const styles = StyleSheet.create({
 
     textAlign: 'center',
 
+  },
+
+  stopwatchText: {
+    color: '#ff0000',
   },
 
   /*
@@ -920,4 +998,3 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
 });
-
